@@ -61,3 +61,12 @@ html, body {
 .error{
   color: red;
 }
+
+.tools{
+  float: left;
+  clear: left;
+}
+
+.canvas .block img{
+  position: absolute;
+} 
