@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Canvas</title>
+  <link rel="stylesheet" type="text/css" href="bootstrap.css">
+  <link rel="stylesheet" type="text/css" href="main.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  
+  <script>
+
+    //Simple function to populate the image field given a list
+    //**It is better to have a class ImageFieldManager with this as one of the method in it
+    function populateImageField(img_list){
+      //for each image, append to the image field
+      img_list.forEach(function(imgurl){
+        $(".image .list-unstyled").append("<li><img src=" + "\"" + imgurl + "\"" + "class=\"img-rounded\" ondragstart=\"dragStartHandler(event, 'assets')\"/></li> ");
+      });
+    }
+
+    //function to upload the image file using ajax request
+    function uploadImage(imgdata){
+          
+          let formdata = new FormData();
+          formdata.append("upload", imgdata);
+
+          event.stopPropagation();
+          event.preventDefault();
+
+          $.ajax({
+            url: "/uploads",
+            type: 'POST',
+            data: formdata,
+            datatype: "json",
+            async: false,
+            success: function(data){
+              alert("File upload successful.");
+              
+              //add the image to the image field
+              let imgurl = data.file;
+              $(".image .list-unstyled").append("<li><img src=" + "\"" + imgurl + "\"" + "class=\"img-rounded\" ondragstart=\"dragStartHandler(event, 'assets')\"/></li>");
+            },
+            cache: false,
+            contentType: false,
+            processData: false
+          }); //ajax
+    }
+
+    function dragOverHandler(event){
+      // prevent default to allow drop
+      event.preventDefault();
+    }
+
+    function dropHandler(event){
+      event.preventDefault();
+      let target = $(event.target);
+      let imgurl = event.dataTransfer.getData("imgurl");
+      let dragsrc = event.dataTransfer.getData("dragsrc");
+
+      let mouseX = event.pageX;
+      let mouseY = event.pageY;
+
+      //if the source of the drag item is from the asset then append it to the box.
+      if (dragsrc === 'assets'){
+        let element = $("<img src=" + "\"" + imgurl + "\"" + "class=\"img-rounded sandbox\" height=\"50px\" width=\"50px\" draggable=\"true\" ondragstart=\"dragStartHandler(event, 'sandbox')\"/>")
+        
+        target.append(element);
+
+        var x = mouseX - target.offset().left;
+        var y = mouseY - target.offset().top;
+
+        element.css({top: y - 25, left: x - 25});
+      } 
+
+      //if the source is from sandbox, simply move the element
+      if (dragsrc === 'sandbox'){
+        var x = mouseX - target.offset().left;
+        var y = mouseY - target.offset().top;
+
+        //.css({top: y - 25, left: x - 25});
+      }
+    }
+    
+    function dragStartHandler(event, type){
+      event.dataTransfer.setData("imgurl", event.target.src);
+      event.dataTransfer.setData("dragsrc", type);
+
+      let target = event.target;
+      if (type === 'sandbox'){
+        $(event.target).mousemove(function(event){
+          let mouseX = event.pageX;
+          let mouseY = event.pageY;          
+          var x = mouseX - $(".block").offset().left;
+          var y = mouseY - $(".block").offset().top;
+
+          $(target).css({top: y - 25, left: x - 25});
+        });
+      }
+    }
+
+  </script>
+
+  <script>  
+    $(document).ready(function(){
+      
+      //Test for jQuery
+      if (typeof jQuery === undefined){
+        throw "Error. jQuery is not loaded properly";
+      }
+
+      let host = window.location.host;
+      let imgapi_url = "http://" + host + "/images";
+
+      
+      //get the image list from the server api and populate the the image field
+      $.get(imgapi_url, function(data, success){
+        let images = data;
+        populateImageField(images);
+      });
+
+      let file;
+      $("input[name='upload']").on("change", function(){
+        
+        //remove error message if exist
+        $(".error").remove();
+
+        file = $(this)[0].files[0];
+        let filetype = file.type;
+        
+        //Check for correct file format
+        //Reset input field and throw error if incorrect MIME type
+        if ((filetype !== "image/png") && (filetype !== "image/jpeg")){
+          $(this).val(null);
+          $(".form").append("<span class=\"error\"> Only .png and .jpeg files are accepted. </span>");
+          file = null;
+          throw "Input file incorrect MIME type."
+        } 
+      }); //on upload form changes
+
+
+      //Upload file if submit button is clicked
+      $(".form #submit").click(function(event){
+        $(".error").remove();
+        if (file === undefined || file === null) {
+          $(".form").append("<span class=\"error\"> No file is selected for upload. </span>");
+          throw "No file is selected for upload."          
+        } else {
+          uploadImage(file);
+        } 
+      }); //click
+
+
+    });//document ready
+  </script>
+</head>
+<body>
+<!-- side pane -->
+<div class="sidepane col-sm-2 col-md-2 col-lg-2">
+  <div class="form">
+    <h3>Form</h3>
+      <input type="file" class="form-control" placeholder="Upload Your Images" name="upload" accept=".png, .jpeg">
+      <button id="submit" class="btn btn-default">upload</button>
+    <!-- Upload Form here -->
+  </div>
+  <hr>
+  <div class="assets">
+    <h3>Assets</h3>
+    <div class="text">
+        <h4>Text</h4>
+        <button id="addText" class="btn btn-default">Add Text</button>
+    </div>
+    <div class="image">
+        <h4>Images</h4>
+        <ul class="list-unstyled">
+            <!-- List of images here -->
+            <!-- <li><img src="images/sample.jpeg" class="img-rounded" /></li> -->
+        </ul>
+    </div>
+  </div>
+  <hr>
+  <div class="tools">
+    <h3>Tools</h3>
+      <button id="addText" class="btn btn-default">Save session</button>
+  </div>
+</div>
+<!-- canvas -->
+<div class="canvas col-sm-8 col-md-8 col-lg-8">
+    <div class="block" ondragover="dragOverHandler(event)" ondrop="dropHandler(event)">
+        <!-- Add images and texts to here -->
+    </div>
+</div>
+
+</body>
+
+</html>
