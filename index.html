@@ -45,6 +45,10 @@
           }); //ajax
     }
 
+    //**************************************
+    //DRAG EVENTS FOR ASSETS
+    //**************************************
+
     function dragOverHandler(event){
       // prevent default to allow drop
       event.preventDefault();
@@ -61,7 +65,7 @@
 
       //if the source of the drag item is from the asset then append it to the box.
       if (dragsrc === 'assets'){
-        let element = $("<img src=" + "\"" + imgurl + "\"" + "class=\"img-rounded sandbox\" height=\"50px\" width=\"50px\" draggable=\"true\" ondragstart=\"dragStartHandler(event, 'sandbox')\"/>")
+        let element = $("<img src=" + "\"" + imgurl + "\"" + "class=\"img-rounded sandbox\" height=\"50px\" width=\"50px\" onmousedown = \"elementMouseDownHandler(event)\" onmouseup = \"elementMouseUpHandler(event)\" onmouseover = \"elementMouseOverHandler(event)\" draggable=\"false\"/>")
         
         target.append(element);
 
@@ -70,32 +74,43 @@
 
         element.css({top: y - 25, left: x - 25});
       } 
-
-      //if the source is from sandbox, simply move the element
-      if (dragsrc === 'sandbox'){
-        var x = mouseX - target.offset().left;
-        var y = mouseY - target.offset().top;
-
-        //.css({top: y - 25, left: x - 25});
-      }
     }
-    
+
     function dragStartHandler(event, type){
       event.dataTransfer.setData("imgurl", event.target.src);
       event.dataTransfer.setData("dragsrc", type);
-
-      let target = event.target;
-      if (type === 'sandbox'){
-        $(event.target).mousemove(function(event){
-          let mouseX = event.pageX;
-          let mouseY = event.pageY;          
-          var x = mouseX - $(".block").offset().left;
-          var y = mouseY - $(".block").offset().top;
-
-          $(target).css({top: y - 25, left: x - 25});
-        });
-      }
     }
+
+    //**************************************
+    //MOUSE EVENTS FOR SANDBOX
+    //Implements our own drag in the sandbox
+    //**************************************
+
+    //NOTE: WORKS but needs more testing to figure out if the offsets are correct relative to the mousepointer
+    function elementMouseDownHandler(event){
+      let target = event.target;
+      target.drag = true;
+
+      $(target).mousemove(function(event){
+        if (!target.drag){
+          return;
+        }
+
+        let x = event.pageX - $(".block").offset().left;
+        let y = event.pageY - $(".block").offset().top;
+        $(target).css({top: y - 25, left: x - 25})
+      })
+    }
+
+    function elementMouseUpHandler(event){
+      event.target.drag = false;
+    }
+    
+    function elementMouseOverHandler(event){
+      //Change the mouse cursor to the move cursor
+      //Implement scaling, zoom, rotation UI here
+    }    
+
 
   </script>
 
