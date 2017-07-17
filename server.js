@@ -29,6 +29,7 @@ let filter = ( req, file, cb ) => {
   }
 }
 
+
 // set multer config
 let upload = multer( {
   storage: storage,
@@ -54,6 +55,11 @@ app.post( '/uploads', ( req, res ) => {
     }
   })
 })
+
+// route for storing a session element
+app.post('/addelement', (req, res) => {
+
+});
 
 app.get( '/images', ( req, res ) => {
   let file_path = req.protocol + '://' + req.get('host') + '/images/';

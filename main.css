@@ -67,6 +67,10 @@ html, body {
   clear: left;
 }
 
+.canvas .block .element {
+  position: absolute;
+  border: none;
+}
 .canvas .block img{
   position: absolute;
 } 

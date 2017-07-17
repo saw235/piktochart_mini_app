@@ -4,7 +4,7 @@
   <title>Canvas</title>
   <link rel="stylesheet" type="text/css" href="bootstrap.css">
   <link rel="stylesheet" type="text/css" href="main.css">
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
   
   <script>
 
@@ -65,14 +65,14 @@
 
       //if the source of the drag item is from the asset then append it to the box.
       if (dragsrc === 'assets'){
-        let element = $("<img src=" + "\"" + imgurl + "\"" + "class=\"img-rounded sandbox\" height=\"50px\" width=\"50px\" onmousedown = \"elementMouseDownHandler(event)\" onmouseup = \"elementMouseUpHandler(event)\" onmouseover = \"elementMouseOverHandler(event)\" draggable=\"false\"/>")
+        let element = $("<img src=" + "\"" + imgurl + "\"" + "class=\"img-rounded element\" height=\"50px\" width=\"50px\" onmousedown = \"elementMouseDownHandler(event)\" onmouseup = \"elementMouseUpHandler(event)\" onmouseover = \"elementMouseOverHandler(event)\" onmouseout=\"elementMouseOutHandler(event)\" draggable=\"false\"/>")
         
         target.append(element);
 
         var x = mouseX - target.offset().left;
         var y = mouseY - target.offset().top;
 
-        element.css({top: y - 25, left: x - 25});
+        element.css({top: y - 25, left: x - 25, cursor: 'pointer'});
       } 
     }
 
@@ -86,10 +86,43 @@
     //Implements our own drag in the sandbox
     //**************************************
 
+    var selected_element = null; 
+
+    function selectElement(target){
+
+      if (selected_element){
+        delete selected_element;
+      }
+
+      selected_element = target;
+      $(selected_element).css({"border-style": "dotted"})
+    }
+
+    function deselectElement(){
+      $(selected_element).css({"border-style": "", border:"none"});
+      selected_element = null;
+    }
+
     //NOTE: WORKS but needs more testing to figure out if the offsets are correct relative to the mousepointer
     function elementMouseDownHandler(event){
+
+      //stop event from propagating upwards to parent
+      event.stopPropagation();
+
       let target = event.target;
       target.drag = true;
+
+      if (!selected_element){
+        selectElement(target);
+      }
+      else if (selected_element !== target){
+        deselectElement();
+        selectElement(target);    
+      }
+      
+      bringToTop(target);
+
+      $(target).css({opacity: 0.5});
 
       $(target).mousemove(function(event){
         if (!target.drag){
@@ -98,12 +131,13 @@
 
         let x = event.pageX - $(".block").offset().left;
         let y = event.pageY - $(".block").offset().top;
-        $(target).css({top: y - 25, left: x - 25})
+        $(target).css({top: y - 25 , left: x - 25 })
       })
     }
 
     function elementMouseUpHandler(event){
       event.target.drag = false;
+      $(event.target).css({opacity: 1});
     }
     
     function elementMouseOverHandler(event){
@@ -111,6 +145,19 @@
       //Implement scaling, zoom, rotation UI here
     }    
 
+    function elementMouseOutHandler(event){
+      event.target.drag = false;
+      $(event.target).css({opacity: 1});
+    }
+
+    function bringToTop(target){
+      let elements = $(".element");
+      Array.prototype.forEach.call(elements, function(element){
+        $(element).css({'z-index': 0});
+      })
+
+      $(target).css({'z-index': 1});
+    }
 
   </script>
 
@@ -153,7 +200,7 @@
 
 
       //Upload file if submit button is clicked
-      $(".form #submit").click(function(event){
+      $(".form #submit").click( event => {
         $(".error").remove();
         if (file === undefined || file === null) {
           $(".form").append("<span class=\"error\"> No file is selected for upload. </span>");
@@ -163,6 +210,22 @@
         } 
       }); //click
 
+      $("#addText").click( event => {
+        var textarea = $("<textarea class=\"element\" onmousedown=\"elementMouseDownHandler(event)\" onmouseup=\"elementMouseUpHandler(event)\" onmouseover=\"elementMouseOverHandler(event)\" onmouseout=\"elementMouseOutHandler(event)\" draggable=\"false\"> Add Text</textarea>");
+        textarea.css({resize: "none"})
+        $(".block").append(textarea)
+      });
+
+      $(".block").mousedown(function(event) {
+        deselectElement()
+      });
+
+      $(document).keydown(function(event){
+       
+        if ((event.which|| event.keyCode) === 46 && selected_element){
+          $(selected_element).remove();
+        } 
+      }) //document keypress
 
     });//document ready
   </script>
@@ -194,7 +257,7 @@
   <hr>
   <div class="tools">
     <h3>Tools</h3>
-      <button id="addText" class="btn btn-default">Save session</button>
+      <button id="saveSession" class="btn btn-default">Save session</button>
   </div>
 </div>
 <!-- canvas -->
