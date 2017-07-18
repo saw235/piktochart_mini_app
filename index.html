@@ -7,14 +7,122 @@
   <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
   
   <script>
+    //**************************************
+    //Session methods
+    //**************************************
+    function clearSession(){
+      $(".canvas .block .element").remove();
+      selected_element = null;
+    }
+
+    function updateSessionId(sessionid){
+      currentsessionid = sessionid;
+      renderSessionId(currentsessionid);
+    }
+
+    function retrieveSession(sessionid, key){
+      $.post('/retrievesession', {
+        sessionid: sessionid,
+        key: key
+      }, (data) => {
+        alert("Session retrieved!");
+
+        clearSession();
+        updateSessionId(data.sessionid);
+        populateCanvas(data.elements)
+        saveSessionLocal();
+
+      }).fail( () => {
+        alert("Failed to retreive session.");
+      });
+    }
+
+    //take a snapshot of the current session and send it to server for saving
+    function saveSession(currentsessionid, key){
+      //for each element in the canvas
+      let elements = $(".canvas .block .element")
+      let save_elements = [];
+
+      //save the element's html and value if it exist
+      Array.prototype.forEach.call(elements, function(element, i){
+        save_elements.push({outerHTML: element.outerHTML, value: element.value});
+      })
+
+      //submit a postrequest  
+      $.post("/savesession", {
+        sessionid: currentsessionid, 
+        data: save_elements,
+        key: key //has to provide correct key and sessionid pair to retrieve a session
+      }, (data) => {
+        alert("Session saved succesfully.\nSession id: " + data);
+        saveSessionLocal();
+      })
+    }
+
+    //take a snapshot of the current session locally
+    function saveSessionLocal(){
+      let elements = $(".canvas .block .element")
+      let save_elements = [];
+
+      //save the element's html
+      Array.prototype.forEach.call(elements, (element, i) => {
+        save_elements.push({outerHTML: element.outerHTML, value: element.value});
+      })
+
+      sessionStorage.setItem("save_elements", JSON.stringify(save_elements));
+    }
+
+    //**************************************
+    // Other Methods
+    //**************************************
 
     //Simple function to populate the image field given a list
-    //**It is better to have a class ImageFieldManager with this as one of the method in it
+    //** It is better to have a class ImageFieldManager with this as one of the method in it
     function populateImageField(img_list){
       //for each image, append to the image field
-      img_list.forEach(function(imgurl){
+      img_list.forEach((imgurl) => {
+        //TO-DO **Class, Event Listener needs to be added seperately for seperation of UI rendering and functionality
+        let img_asset = $("<li><img src=" + "\"" + imgurl + "\"" + "class=\"img-rounded\"/></li>")
         $(".image .list-unstyled").append("<li><img src=" + "\"" + imgurl + "\"" + "class=\"img-rounded\" ondragstart=\"dragStartHandler(event, 'assets')\"/></li> ");
+
+        // NOT WORKING AS INTENDED
+        // $(".image .list-unstyled").append(img_asset);
+        // img_asset.on('dragstart', (event) => {
+        //   dragStartHandler(event,'assets')
+        // })
       });
+    }
+
+    function populateCanvas(elements){
+      Array.prototype.forEach.call(elements, (element) => {
+        
+        let canvas_element = $(element.outerHTML)
+        $('.canvas .block').append(canvas_element);
+
+        if (element.value){
+          canvas_element.val(element.value);
+        }
+      })
+
+      Array.prototype.forEach.call($('.element'), (canvas_elements) => {
+        addElementEventListeners($(canvas_elements));
+        resetElementStyle($(canvas_elements));
+      });
+    }
+
+    function addElementEventListeners(element){
+      element.on("mousedown", elementMouseDownHandler);
+      element.on("mouseup", elementMouseUpHandler);
+      element.on("mouseover", elementMouseOverHandler);
+      element.on("mouseout", elementMouseOutHandler);
+    }
+
+    function addElementToCanvas(element){
+      element.addClass("element")    
+      addElementEventListeners(element);
+      element.attr('draggable', false); //because we are implementing our own drag
+
+      $(".canvas .block").append(element)
     }
 
     //function to upload the image file using ajax request
@@ -32,7 +140,7 @@
             data: formdata,
             datatype: "json",
             async: false,
-            success: function(data){
+            success: (data) => {
               alert("File upload successful.");
               
               //add the image to the image field
@@ -65,14 +173,16 @@
 
       //if the source of the drag item is from the asset then append it to the box.
       if (dragsrc === 'assets'){
-        let element = $("<img src=" + "\"" + imgurl + "\"" + "class=\"img-rounded element\" height=\"50px\" width=\"50px\" onmousedown = \"elementMouseDownHandler(event)\" onmouseup = \"elementMouseUpHandler(event)\" onmouseover = \"elementMouseOverHandler(event)\" onmouseout=\"elementMouseOutHandler(event)\" draggable=\"false\"/>")
         
-        target.append(element);
+        let element = $("<img src=" + "\"" + imgurl + "\"" + "class=\"img-rounded\" height=\"50px\" width=\"50px\"/>")
+        addElementToCanvas(element);        
 
-        var x = mouseX - target.offset().left;
-        var y = mouseY - target.offset().top;
+        let x = mouseX - target.offset().left;
+        let y = mouseY - target.offset().top;
 
         element.css({top: y - 25, left: x - 25, cursor: 'pointer'});
+
+        saveSessionLocal();
       } 
     }
 
@@ -86,24 +196,7 @@
     //Implements our own drag in the sandbox
     //**************************************
 
-    var selected_element = null; 
-
-    function selectElement(target){
-
-      if (selected_element){
-        delete selected_element;
-      }
-
-      selected_element = target;
-      $(selected_element).css({"border-style": "dotted"})
-    }
-
-    function deselectElement(){
-      $(selected_element).css({"border-style": "", border:"none"});
-      selected_element = null;
-    }
-
-    //NOTE: WORKS but needs more testing to figure out if the offsets are correct relative to the mousepointer
+    //TO-DO: WORKS partially but needs to make it so that the selected element does not center in the mouse pointer automatically
     function elementMouseDownHandler(event){
 
       //stop event from propagating upwards to parent
@@ -121,23 +214,40 @@
       }
       
       bringToTop(target);
+      renderElementMouseDown(target);
 
-      $(target).css({opacity: 0.5});
-
-      $(target).mousemove(function(event){
+      $(target).mousemove( (event) => {
         if (!target.drag){
           return;
         }
-
         let x = event.pageX - $(".block").offset().left;
         let y = event.pageY - $(".block").offset().top;
-        $(target).css({top: y - 25 , left: x - 25 })
+
+        if (event.pageX - $(target).width()/2 < $(".block").offset().left){
+          return;
+        }
+
+        if (event.pageX + $(target).width()/2 > $(".block").offset().left + $(".block").width()){
+          return;
+        }        
+
+        if (event.pageY - $(target).height()/2 < $(".block").offset().top){
+          return;
+        }        
+
+        if (event.pageY + $(target).height()/2 > $(".block").offset().top + $(".block").height()){
+          return;
+        }   
+
+
+        $(target).css({top: y - $(target).height()/2 , left: x - $(target).width()/2})
       })
     }
 
     function elementMouseUpHandler(event){
       event.target.drag = false;
-      $(event.target).css({opacity: 1});
+      saveSessionLocal();      
+      renderElementMouseUp(event.target)
     }
     
     function elementMouseOverHandler(event){
@@ -147,44 +257,117 @@
 
     function elementMouseOutHandler(event){
       event.target.drag = false;
-      $(event.target).css({opacity: 1});
+      renderElementMouseOut(event.target)
     }
+
+    //**************************************
+    //Methods related to element selections
+    //**************************************
+    var selected_element = null; 
+
+    function selectElement(target){
+      if (selected_element){
+        delete selected_element;
+      }
+      selected_element = target;
+      renderSelectedElement(selected_element);
+    }
+
+    function deselectElement(){
+      renderDeselectedElement(selected_element);
+      selected_element = null;
+    }    
 
     function bringToTop(target){
       let elements = $(".element");
-      Array.prototype.forEach.call(elements, function(element){
+      Array.prototype.forEach.call(elements, (element) => {
         $(element).css({'z-index': 0});
       })
 
       $(target).css({'z-index': 1});
     }
 
+    //**************************************
+    //Render
+    //**************************************
+    function renderSessionId(sessionid){
+      if ($("#sessionid")){
+        $("#sessionid").remove();
+      }
+
+      $('.sidepane').append('<p id=\"sessionid\"> Session ID: ' + sessionid + '</p>');
+    }
+
+    function resetElementStyle(target){
+      $(target).css({"border-style": "", border:"none"});
+      $(target).css({opacity: 1});
+    }
+
+    function renderSelectedElement(target){
+      $(target).css({"border-style": "dotted"})
+    }
+
+    function renderDeselectedElement(target){
+      $(target).css({"border-style": "", border:"none"});
+    }    
+
+    function renderElementMouseUp(target){
+      $(target).css({opacity: 1});
+    }
+
+    function renderElementMouseDown(target){
+      $(target).css({opacity: 0.5});
+    }
+
+    function renderElementMouseOut(target){
+      $(target).css({opacity: 1});
+    }
+
   </script>
 
   <script>  
+    var currentsessionid;
     $(document).ready(function(){
       
       //Test for jQuery
       if (typeof jQuery === undefined){
+        alert("jQuery is not loaded properly. Please refresh the browser.");
         throw "Error. jQuery is not loaded properly";
       }
 
       let host = window.location.host;
       let imgapi_url = "http://" + host + "/images";
+      let sessionidapi = "http://" + host + "/getnewsession";
+      currentsessionid = sessionStorage.getItem("sessionid");
 
-      
+
+      //Grab a unique session id from the server
+      if (!currentsessionid){
+        $.get(sessionidapi, (data, success) => {
+          currentsessionid = data;
+          sessionStorage.setItem("sessionid", data);
+          renderSessionId(currentsessionid);
+        })        
+      } else {
+
+        let elements = JSON.parse(sessionStorage.getItem("save_elements"));
+
+        //if a session id already exist, then just render right away
+        selected_element = null;
+        renderSessionId(currentsessionid);
+        populateCanvas(elements);
+      }
+
       //get the image list from the server api and populate the the image field
-      $.get(imgapi_url, function(data, success){
+      $.get(imgapi_url, (data, success) => {
         let images = data;
         populateImageField(images);
       });
 
       let file;
       $("input[name='upload']").on("change", function(){
-        
         //remove error message if exist
         $(".error").remove();
-
         file = $(this)[0].files[0];
         let filetype = file.type;
         
@@ -199,7 +382,10 @@
       }); //on upload form changes
 
 
-      //Upload file if submit button is clicked
+      /* ===============================
+        Click Events
+       ============================== */   
+      //Submit Button
       $(".form #submit").click( event => {
         $(".error").remove();
         if (file === undefined || file === null) {
@@ -208,22 +394,46 @@
         } else {
           uploadImage(file);
         } 
-      }); //click
+      }); 
 
-      $("#addText").click( event => {
-        var textarea = $("<textarea class=\"element\" onmousedown=\"elementMouseDownHandler(event)\" onmouseup=\"elementMouseUpHandler(event)\" onmouseover=\"elementMouseOverHandler(event)\" onmouseout=\"elementMouseOutHandler(event)\" draggable=\"false\"> Add Text</textarea>");
-        textarea.css({resize: "none"})
-        $(".block").append(textarea)
+      $("#clearSession").click(event => {
+        clearSession();
       });
 
-      $(".block").mousedown(function(event) {
+      //Save Session Button
+      $("#saveSession").click( event =>{
+        let key = prompt("Please enter session password. ", "")
+        saveSession(currentsessionid, key);
+      });
+
+      //Retrieve Session Button
+      $("#retrieveSession").click( event =>{
+        let sessionid = prompt("Please enter session id to be retrieved. ", "")
+        let key = prompt("Please enter session password. ", "")
+        retrieveSession(sessionid, key);
+      });      
+
+      //Add Text Button
+      $("#addText").click( event => {
+        let textarea = $("<textarea> Add Text</textarea>");
+        textarea.css({resize: "none"})
+
+        addElementToCanvas(textarea);
+        saveSessionLocal();
+      });
+
+      /* ===============================
+        Other Events
+       ============================== */  
+
+      $(".block").mousedown( event => {
         deselectElement()
       });
 
-      $(document).keydown(function(event){
-       
+      $(document).keydown( event => {
         if ((event.which|| event.keyCode) === 46 && selected_element){
           $(selected_element).remove();
+          saveSessionLocal();
         } 
       }) //document keypress
 
@@ -257,7 +467,9 @@
   <hr>
   <div class="tools">
     <h3>Tools</h3>
-      <button id="saveSession" class="btn btn-default">Save session</button>
+      <button id="clearSession" class="btn btn-default">Clear session</button>   
+      <button id="saveSession" class="btn btn-default">Save session to server</button>
+      <button id="retrieveSession" class="btn btn-default">Retrieve session from server</button>      
   </div>
 </div>
 <!-- canvas -->
