@@ -4,7 +4,7 @@ I implemented as many features as I could within the given time. On the front en
 
 Features implemented: 
 1. Upload image
-..1. Front-end MIME type check
+    1. Front-end MIME type check
 2. Drag drop assets
 3. Move assets in sandbox
 4. Delete assets in sandbox (can be done by selecting the element and pressing Del key)
