@@ -2,14 +2,15 @@
 
 I implemented as many features as I could within the given time. On the front end I used jQuery to allow for easy element access and manipulation, and in the server side I made some changes to the API to allow for storing and retrieving sessions given a key (as a representative security feature).
 
-Features implemented: 1) Upload image
-							i) Front-end MIME type check
-					  2) Drag drop assets
-					  3) Move assets in sandbox
-					  4) Delete assets in sandbox (can be done by selecting the element and pressing Del key)
-					  5) Save session locally
-					  6) Save session to server
-					  7) Retrieve session from server
+Features implemented: 
+1. Upload image
+..i Front-end MIME type check
+2. Drag drop assets
+3. Move assets in sandbox
+4. Delete assets in sandbox (can be done by selecting the element and pressing Del key)
+5. Save session locally
+6. Save session to server
+7. Retrieve session from server
 
 You may need to run 
 
